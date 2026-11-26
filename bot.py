@@ -1,10 +1,11 @@
 import asyncio
 import re
 from aiogram import Bot, Dispatcher, F
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
 TOKEN = "сырррр"
+OWNER_ID =110894500   # замени на свой Id из @userinfobot
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
@@ -24,6 +25,11 @@ async def cmd_start(message: Message):
     ])
     await message.answer("Привет! Нажми кнопку, чтобы оставить заявку:", reply_markup=keyboard)
 
+@dp.message(Command("test"))
+async def test_notify(message: Message):
+    await bot.send_message(chat_id=OWNER_ID, text="Тест: уведомление работает!")
+    await message.answer("Команда выполнена — смотри терминал и свою личку")
+
 @dp.callback_query(F.data == "order")
 async def order_start(callback: CallbackQuery):
     user_state[callback.from_user.id] = {"step": "name"}
@@ -42,6 +48,7 @@ async def go_back(callback: CallbackQuery):
 async def handle_messages(message: Message):
     user_id = message.from_user.id
 
+    # игнорируем команды (например, /start и /test)
     if message.text and message.text.startswith("/"):
         return
 
@@ -63,8 +70,14 @@ async def handle_messages(message: Message):
             await message.answer("Это не похоже на телефон 🤔 Попробуй ещё раз, например: +79001234567")
             return
         user_state[user_id]["phone"] = message.text
+        # сохраняем заявку в файл
         with open("orders.txt", "a", encoding="utf-8") as f:
             f.write(f"{user_state[user_id]['name']} — {user_state[user_id]['phone']}\n")
+        # шлём уведомление владельцу
+        await bot.send_message(
+            chat_id=OWNER_ID,
+            text=f"📋 Новая заявка!\nИмя: {user_state[user_id]['name']}\nТелефон: {user_state[user_id]['phone']}"
+        )
         await message.answer("✅ Заявка принята! Мы скоро свяжемся с тобой.")
         del user_state[user_id]
 
